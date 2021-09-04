@@ -3,6 +3,7 @@ const express = require('express');
 const PORT = process.env.PORT || 3001;
 const app = express();
 const mysql = require('mysql2');
+const { resourceLimits } = require('worker_threads');
 const inputCheck = require('./utils/inputCheck');
 
 //express middleware
@@ -62,6 +63,54 @@ app.get(`/api/candidate/:id`,(req, res)=>{
     });
 });
 
+app.get('/api/parties', (req, res)=>{
+    const sql = `SELECT * FROM parties`;
+    db.query(sql, (err, rows)=>{
+        if(err){
+            res.status(500).json({error: err.message});
+            return;
+        }
+        res.json({
+            message: 'success',
+            data:rows
+        });
+    });
+});
+
+app.get('/api/party/:id', (req, res)=>{
+    const sql = `SELECT * FROM parties WHERE id = ?`;
+    const params = [req.params.id]
+    db.query(sql,params,(err, row)=>{
+        if(err){
+            res.status(400).json({ error: err.messages});
+            return;
+        }
+        res.json({
+            messages: "success",
+            data:row
+        });
+    });
+});
+
+app.delete('/api/party/:id', (req, res)=>{
+    const sql = `DELETE FROM parties WHERE id =?`;
+    const params = [req.params.id];
+    db.query(sql, params, (err, result)=>{
+        if(err){
+            res.status(400).json({error: res.message});
+        }else if(!result.affectedRows){
+            res.json({
+                message:'party not found'
+            });
+        }else{
+            res.json({
+                message:'deleted',
+                changes: result.affectedRows,
+                id:req.params.id
+            });
+        }
+    });
+});
 
 //DELETE a candidates
 app.delete('/api/candidate/:id', (req, res)=>{
@@ -108,7 +157,32 @@ app.post('/api/candidate',({body}, res)=>{
     });
 });
 
-// 
+//update a candidate's party
+app.put('/api/candidate/:id', (req,res)=>{
+    const error = inputCheck(req.body, 'party_id');
+    const sql = `UPDATE candidates SET party_id = ?
+                WHERE id = ?`;
+    const params = [req.body.party_id, req.params.id];
+    if(error){
+        res.status(400).json({ error: errors});
+        return;
+    }
+    db.query(sql, params, (err, result)=>{
+        if(err){
+            res.status(400).json({ error: err.message});
+        }else if(!result.affectedRows){
+            res.json({
+                message: 'Candidates not found'
+            });
+        }else{
+            res.json({
+                message:"success",
+                data: req.body,
+                changes: result.affectRows
+            });
+        }
+    });
+});
 
 // db.query(sql, params, (err, result)=>{
 //     if(err){
